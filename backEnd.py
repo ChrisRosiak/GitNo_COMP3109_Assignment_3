@@ -23,6 +23,7 @@ class blockNode:
         self.instrs = [] #list of instructions for block
         self.name = blockNumber
         self.visited = False
+        self.parent = None
 
 class functionTree:
     def __init__(self,name,arguments,headBlock):
@@ -101,6 +102,7 @@ for i in range(0,len(data)):
         #create new child list of references
         for child in stringList:
             blkRef.children.append(functionBlocks[child])
+            functionBlocks[child].parent = blkRef
 
 ##TREE CONSTRUCTION FINISHED
 
@@ -118,31 +120,6 @@ for func in functionList:
 
 #END TASK 2
 ##############################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
