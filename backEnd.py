@@ -34,8 +34,8 @@ class functionTree:
 all_the_text = open('tests/simple.in').read()      # all text from a text file
 data = OneOrMore(nestedExpr()).parseString(all_the_text)
 data = data[0];                                    # Remove redundant first list layer
-print 'Data is length: '
-print len(data)
+#print 'Data is length: '
+#print len(data)
 
 #this is a list of functionTrees
 functionList = []
@@ -54,10 +54,10 @@ for i in range(0,len(data)):
     #but begin the search at main, and flag functions that are used.
     #Then add these functions to the work list. If a function has already
     #been analyzed, skip it. This requires the use of a 'searched' list
-    print 'Function name is: ' 
-    print data[i][0]
-    print 'Arguments are: ' 
-    print data[i][1]
+    #print 'Function name is: ' 
+    #print data[i][0]
+    #print 'Arguments are: ' 
+    #print data[i][1]
 
     #This is a dictionary of block labels with matching blockNode references
     functionBlocks = {}
@@ -65,9 +65,9 @@ for i in range(0,len(data)):
     for j in range(2,len(data[i])):
         #This is the block level loop
         #It will require the construction of a new block node.
-        print 'Blocks number is: '
-        print data[i][j][0]
-        print 'Instructions list: '
+        #print 'Blocks number is: '
+        #print data[i][j][0]
+        #print 'Instructions list: '
 
         currentNode = blockNode(data[i][j][0])
         #add reference to dictionary
@@ -81,17 +81,15 @@ for i in range(0,len(data)):
 
             #But first, add the instruction to the node instruction list
             currentNode.instrs.append(data[i][j][k])
-
             if(data[i][j][k][0] == 'br'):
                 currentNode.children.append(data[i][j][k][2])
                 currentNode.children.append(data[i][j][k][3])
 
-            if(data[i][j][k][0] == 'call'):
                 #If non-called functions are to be culled, this is where functions should be marked as called, and therefore the functions are reachable.
-                print data[i][j][k][2]
-                print 'Called'
-
-            print data[i][j][k]
+            #if(data[i][j][k][0] == 'call'):
+                #print data[i][j][k][2]
+                #print 'Called'
+            #print data[i][j][k]
 
     functionList.append(functionTree(data[i][0],data[i][1],functionBlocks['0']))
     #This is where the string references to blocks are fixed to be actual node references using the functionBlocks dictionary.
@@ -107,22 +105,73 @@ for i in range(0,len(data)):
 ##TREE CONSTRUCTION FINISHED
 
 ##START TASK 2 DFS HERE
-def bfsTree(block,functionTree):
+def dfsTree(block,functionTree):
     block.visited = True
-    #add block REFERENCE to the function visited list.
+    #add block to the function visited list.
     if block not in functionTree.visitedBlocks:
         functionTree.visitedBlocks.append(block)
     for child in block.children:
-        bfsTree(child,functionTree)
-
-
+        dfsTree(child,functionTree)
 
 for func in functionList:
-    bfsTree(func.headBlock,func)
-    print 'Function Name: '
-    print func.name
-    print 'Visited Blocks: '
-    for blk in func.visitedBlocks:
-        print blk.name
-        print blk.instrs
+    dfsTree(func.headBlock,func)
 
+#END TASK 2
+##############################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#############################################################
+#BEGIN FILE OUTPUT
+
+print 'OUTPUT - remove all print statements above this line (and this one)'
+print '(',                                               #open file
+for func in functionList:
+    #If not first function, fix indentation
+    if func != functionList[0]:
+        print ' ',
+    print '(' + func.name + ' (' + ' '.join(func.args) + ')' #open function
+    for blk in func.visitedBlocks:
+        print '    (' + str(blk.name),                       #open block
+        for inst in blk.instrs:
+            print '\t' + '(' + ' '.join(inst) + ')',
+            #If not last element in list, print newline
+            if inst != blk.instrs[-1]:
+                print
+        print ')',                                        #close block
+        #Do not print newline at last element
+        if blk != func.visitedBlocks[-1]:
+            print
+    print ')',                                           #close function
+    if func != functionList[-1]:
+        print
+print ')'                                                #close file
