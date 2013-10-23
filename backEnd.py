@@ -4,7 +4,11 @@
 # Why reinvent the wheel?
 
 from pyparsing import OneOrMore, nestedExpr
+import sys
 
+# sys.argv is a list of the command line arguments used to execute this Python script.
+# sys.argv[0] is the Python script name.
+# sys.argv[1] is the first argument, i.e. file name of the input intermediate code.
 
 #Declare node class here
 #as per tutorial wk 11, it will require 'in' sets and 'out' sets for 
@@ -34,7 +38,7 @@ class functionTree:
         self.headBlock = headBlock
         self.visitedBlocks = []
 
-all_the_text = open('tests/simple.in').read()      # all text from a text file
+all_the_text = open(sys.argv[1]).read()      # all text from a text file
 data = OneOrMore(nestedExpr()).parseString(all_the_text)
 data = data[0];                                    # Remove redundant first list layer
 #print 'Data is length: '
