@@ -7,8 +7,12 @@
 
 
 # KEY TERMS 
-# use[n] - set of variables that are used at node n.
-# def[n] - set of variables that are defined at node n.
+# use[n] - set of registers that are used at node n.
+#        - A variable/register is used when its value is (1) returned from the current function (ret),
+#           (2) stored to a variable (st), (3) is used as a condition for a branch (br), or (4) used by an instruction
+#           whose result is used.
+# def[n] - set of registers that are defined at node n.
+#        - An assignment of a value to a register.
 
 # Function declaration for the iterator.
 def unionSuccessors(blockNode):
@@ -20,14 +24,30 @@ def unionSuccessors(blockNode):
    newOutSet = list(set(newOutSet))
    return newOutSet
 
-def newInSet(blockNode, useSet, defSet):
-   """Function that returns the new in set for the given blockNode."""
-   inSet = set(useSet).union(set(blockNode.outSet) - set(defSet))
-   return list(inSet)
 
 # TODO - Determine use[n] for all nodes in functionList.
-
 # TODO - Determine def[n] for all nodes in functionList.
+for CFG in functionList:
+   for basicBlock in CFG:
+      # This loop is used to determine what registers are used as per condition (4).
+      for i in range(0, len(basicBlock.instrs)):
+         for futureInstr in basicBlock.instrs[i+1:]:
+            if basicBlock.instrs[i][0] in ['add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt', 'call']:
+               # Check is any future instructions use the result of the instruction basicBlock.instrs[i].
+               if basicBlock.instrs[i][1] in futureInstr[2:]:
+                  basicBlock.useSet.add(basicBlock.instrs[i][2:])
+                  break
+      # ffffff
+      for instruction in basicBlock.instrs:
+         # Does the instruction assign a value to a register.
+         if instruction[0] in ['lc', 'ld', 'add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt', 'call']:
+            # If so, add the register name to the def set of the basic block node.
+            basicBlock.defSet.add(instruction[1])
+         # Does the value of a register get used.
+         elif instruction[0] in ['ret', 'br']:
+            basicBlock.useSet.add(instruction[1])
+         elif: instruction[0] == 'st':
+            basicBlock.useSet.add(instruction[2])
 
 # Create dictionary variables to store the in and out set of the basic blocks.
 # The key will be node (basic block) and the value will be the inSet or outSet of the node.
@@ -40,22 +60,24 @@ out_prime = {}
 
 ### Analyse each CFG from the functionList variable.
 for CFG in functionList:
-   #for each node n in CFG                 # Initialise solutions
-   #   in[n] = None ; out[n] = None        ##
+   # for each node n in CFG                 # Initialise solutions
+   # in[n] = None ; out[n] = None           ##
    for node in CFG:
       node.inSet = []
       node.outSet = []
-   #repeat
+   # repeat
    while True:
-   #   for each node n in CFG in reverse topsort order
+      # for each node n in CFG in reverse topsort order
       for node in CFG:
-   #     in'[n] = in[n]                                        # Save current results
-   #     out'[n] = out[n]                                      ##
+         # in'[n] = in[n]                                        # Save current results
+         # out'[n] = out[n]                                      ##
          in_prime[node] = node.inSet
          out_prime[node] = node.outSet
-   #     out[n] = Union in[s] (where s is an element from the set of all successors of the node n)    # Solve data-flow equations
+         # out[n] = Union in[s] (where s is an element from the set of all successors of the node n)    # Solve data-flow equations
          node.outSet = unionSuccessors(node)
-   #     in[n] = use[n] Union (out[n] - def[n])                                                       ##
-         node.inSet = newInSet(node, useSet, defSet)
-   #until in'[n] = in[n] and out'[n] = out[n] for all n               ## Test for convergence
-     # if in_prime == node.inSet and out_prime == node.outSet:
+         # in[n] = use[n] Union (out[n] - def[n])                                                       ##
+         node.inSet = node.useSet.add(node.outSet - node.defSet)
+      # until in'[n] = in[n] and out'[n] = out[n] for all n               ## Test for convergence
+      #if in_prime == node.inSet and out_prime == node.outSet:
+         break
+
