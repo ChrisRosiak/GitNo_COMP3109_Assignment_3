@@ -14,8 +14,10 @@ from pyparsing import OneOrMore, nestedExpr
 
 class blockNode:
     def __init__(self,blockNumber):
-        self.inSet = []
-        self.outSet = []
+        self.inSet = {}
+        self.outSet = {}
+        self.useSet = {}
+        self.defSet = {}
         #children starts as a string list of node References. It is then fixed to actual references, otherwise it attempts to link a node that has not been created yet.
         self.children = []
         self.readReg = []
