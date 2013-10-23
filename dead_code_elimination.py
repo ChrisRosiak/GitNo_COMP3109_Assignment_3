@@ -86,7 +86,6 @@ for CFG in functionList:
 
 ## TRANSFORMATION PHASE
 
-# TODO - Implement transformation phase.
 # For the transformation phase, a union of the in and out sets must be made for each basic block. For each
 # instruction that uses a register name not contained in the union of out and in set, must be removed.
 
@@ -94,9 +93,10 @@ for CFG in functionList:
    for node in CFG:
       keepRegSet = node.inSet.add(node.outSet)
       for i in range(0, len(node.instrs)):
-         if node.instrs[i][0] in ['lc', 'ld']:
+         if node.instrs[i][0] in ['lc', 'ld', 'call']:
             if not (node.instrs[i][1] in keepRegSet):
                node.instrs[i] = None
-         elif node.instrs[i][0] in []:
+         elif node.instrs[i][0] in ['add', 'sub', 'mul', 'div', 'eq', 'lt', 'gt']:
+            if not (node.instrs[i][1:] in keepRegSet):
+               node.instrs[i] = None
 
-         elif node.instrs[i][0] in []:
