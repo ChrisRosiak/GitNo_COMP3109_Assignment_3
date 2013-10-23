@@ -14,7 +14,7 @@
 # def[n] - set of registers that are defined at node n.
 #        - An assignment of a value to a register.
 
-# Function declaration for the iterator.
+# Function declaration for one of the data-flow equations in the iterator.
 def unionSuccessors(blockNode):
    """Function that creates a list of all the in sets from the successors of the given blockNode."""
    newOutSet = []
@@ -25,8 +25,7 @@ def unionSuccessors(blockNode):
    return newOutSet
 
 
-# TODO - Determine use[n] for all nodes in functionList.
-# TODO - Determine def[n] for all nodes in functionList.
+# Determine use[n] and def[n] for all nodes in functionList.
 for CFG in functionList:
    for basicBlock in CFG:
       # This loop is used to determine what registers are used as per condition (4).
@@ -37,7 +36,7 @@ for CFG in functionList:
                if basicBlock.instrs[i][1] in futureInstr[2:]:
                   basicBlock.useSet.add(basicBlock.instrs[i][2:])
                   break
-      # ffffff
+      # This loop determines def[n] and use[n] for conditions (1), (2), and (3).
       for instruction in basicBlock.instrs:
          # Does the instruction assign a value to a register.
          if instruction[0] in ['lc', 'ld', 'add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt', 'call']:
@@ -53,7 +52,6 @@ for CFG in functionList:
 # The key will be node (basic block) and the value will be the inSet or outSet of the node.
 in_prime = {}
 out_prime = {}
-# TODO - Finish the iterator algorithm.
 
 # Pseudocode of the iterator algorithm.
 ### Comments on actual Python code are prefixed with three '#' symbols.
@@ -78,6 +76,9 @@ for CFG in functionList:
          # in[n] = use[n] Union (out[n] - def[n])                                                       ##
          node.inSet = node.useSet.add(node.outSet - node.defSet)
       # until in'[n] = in[n] and out'[n] = out[n] for all n               ## Test for convergence
-      #if in_prime == node.inSet and out_prime == node.outSet:
+      for node in CFG:
+         if node.inSet != in_prime[node] or node.outSet != out_prime[node]:
+            break
+      else:
          break
 
