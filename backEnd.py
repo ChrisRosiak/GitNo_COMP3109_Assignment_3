@@ -140,14 +140,15 @@ for func in functionList:
 # def[n] - set of registers that are defined at node n.
 #        - An assignment of a value to a register.
 
+
 # Function declaration for one of the data-flow equations in the iterator.
 def unionSuccessors(blockNode):
    """Function that creates a list of all the in sets from the successors of the given blockNode."""
-   newOutSet = []
+   newOutSet = set()
    for child in blockNode.children:
-      newOutSet.extend(child.inSet)
-      newOutSet.extend(unionSuccessors(child))
-   newOutSet = list(set(newOutSet))
+      newOutSet.union(child.inSet)
+      newOutSet.union(unionSuccessors(child))
+   newOutSet = set(newOutSet)
    return newOutSet
 
 
@@ -160,10 +161,15 @@ for CFG in functionList:
       for i in range(0, len(basicBlock.instrs)):
          for futureInstr in basicBlock.instrs[i+1:]:
             if basicBlock.instrs[i][0] in ['add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt', 'call']:
-               # Check is any future instructions use the result of the instruction basicBlock.instrs[i].
-               if basicBlock.instrs[i][1] in futureInstr[2:]:
-                  basicBlock.useSet.add(basicBlock.instrs[i][2:])
-                  break
+               # Check if any future instructions use the result of the instruction basicBlock.instrs[i].
+               if futureInstr[0] in ['add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt', 'st', 'call']:
+                  if basicBlock.instrs[i][1] in futureInstr[2:]:
+                     basicBlock.useSet.update(set(basicBlock.instrs[i][2:]))
+                     break
+               elif futureInstr[0] in ['br', 'ret']:
+                  if basicBlock.instrs[i][1] in futureInstr[1]:
+                     basicBlock.useSet.update(set(basicBlock.instrs[i][2:]))
+                     break
       # This loop determines def[n] and use[n] for conditions (1), (2), and (3).
       for instruction in basicBlock.instrs:
          # Does the instruction assign a value to a register.
@@ -206,7 +212,7 @@ for CFG in functionList:
          # out[n] = Union in[s] (where s is an element from the set of all successors of the node n)    # Solve data-flow equations
          node.outSet = unionSuccessors(node)
          # in[n] = use[n] Union (out[n] - def[n])                                                       ##
-         node.inSet = node.useSet.add(node.outSet - node.defSet)
+         node.inSet = node.useSet.union(node.outSet - node.defSet)
       # until in'[n] = in[n] and out'[n] = out[n] for all n               ## Test for convergence
       for node in CFG:
          if node.inSet != in_prime[node] or node.outSet != out_prime[node]:
@@ -223,18 +229,17 @@ for CFG in functionList:
    CFG = CFG.visitedBlocks
    CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for node in CFG:
-      keepRegSet = node.inSet.add(node.outSet)
+      keepRegSet = node.inSet.union(node.outSet)
       for i in range(0, len(node.instrs)):
          if node.instrs[i][0] in ['lc', 'ld', 'call']:
             if node.instrs[i][1] not in keepRegSet:
                node.instrs[i] = None
          elif node.instrs[i][0] in ['add', 'sub', 'mul', 'div', 'eq', 'lt', 'gt']:
-            if not (node.instrs[i][1:] in keepRegSet):
+            if set(node.instrs[i][1:]).difference(keepRegSet):
                node.instrs[i] = None
-
-
-
-
+      # Remove all instances of None in the instruction member list.
+      for i in range(0, node.instrs.count(None)):
+         node.instrs.remove(None)
 
 
 
