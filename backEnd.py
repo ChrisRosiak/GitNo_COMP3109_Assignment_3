@@ -182,6 +182,8 @@ for CFG in functionList:
          elif instruction[0] == 'st':
             basicBlock.useSet.add(instruction[2])
 
+
+
 # Create dictionary variables to store the in and out set of the basic blocks.
 # The key will be node (basic block) and the value will be the inSet or outSet of the node.
 in_prime = {}
@@ -241,7 +243,9 @@ for CFG in functionList:
       for i in range(0, node.instrs.count(None)):
          node.instrs.remove(None)
 
-
+# Sort the visitedBlocks list in ascending order.
+for CFG in functionList:
+   CFG.visitedBlocks = sorted(CFG.visitedBlocks, key=lambda node: node.name, reverse=False)
 
 
 # END TASK 3
