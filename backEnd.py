@@ -140,12 +140,19 @@ for func in functionList:
 # def[n] - set of registers that are defined at node n.
 #        - An assignment of a value to a register.
 
+# DATA ANALYSIS THEORY
+# This part of the program implements a backward data-flow analysis.
+# The lattice of this data-flow analysis is the set of registers values that are used at a particluar point in the program.
+# The meet operator in this analysis is the union operator.
+# The transfer function is applied to the out set of the basic block.
+#
 
 # Function declaration for one of the data-flow equations in the iterator.
 def unionSuccessors(blockNode):
    """Function that creates a list of all the in sets from the successors of the given blockNode."""
    newOutSet = set()
    for child in blockNode.children:
+      # Add the child inSet to the newSet, as well as the successors of the given blockNode.
       newOutSet.union(child.inSet)
       newOutSet.union(unionSuccessors(child))
    newOutSet = set(newOutSet)
@@ -154,6 +161,7 @@ def unionSuccessors(blockNode):
 
 # Determine use[n] and def[n] for all nodes in functionList.
 for CFG in functionList:
+   # Define CFG to be an ordered list of blockNodes. This is to emulate an actual CFG.
    CFG = CFG.visitedBlocks
    CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for basicBlock in CFG:
@@ -183,26 +191,24 @@ for CFG in functionList:
             basicBlock.useSet.add(instruction[2])
 
 
-
 # Create dictionary variables to store the in and out set of the basic blocks.
 # The key will be node (basic block) and the value will be the inSet or outSet of the node.
 in_prime = {}
 out_prime = {}
 
-## ANALYSIS PHASE 
-
-# Pseudocode of the iterator algorithm.
-### Comments on actual Python code are prefixed with three '#' symbols.
+###### ANALYSIS PHASE 
 
 ### Analyse each CFG from the functionList variable.
 for CFG in functionList:
+   # Create an ordered basic block tree, i.e. CFG. This CFG is in reverse order due to a backward data-flow analysis
+   # being employed.
    CFG = CFG.visitedBlocks
    CFG = sorted(CFG, key=lambda node: node.name, reverse=True)
    # for each node n in CFG                 # Initialise solutions
    # in[n] = None ; out[n] = None           ##
    for node in CFG:
-      node.inSet = []
-      node.outSet = []
+      node.inSet = []      # Set the two sets to the 
+      node.outSet = []     # top element of the lattice.
    # repeat
    while True:
       # for each node n in CFG in reverse topsort order
@@ -215,14 +221,14 @@ for CFG in functionList:
          node.outSet = unionSuccessors(node)
          # in[n] = use[n] Union (out[n] - def[n])                                                       ##
          node.inSet = node.useSet.union(node.outSet - node.defSet)
-      # until in'[n] = in[n] and out'[n] = out[n] for all n               ## Test for convergence
-      for node in CFG:
-         if node.inSet != in_prime[node] or node.outSet != out_prime[node]:
+      # until in'[n] = in[n] and out'[n] = out[n] for all n                   # Test for convergence
+      for node in CFG:                                                        # I.e. test the sets for all nodes 
+         if node.inSet != in_prime[node] or node.outSet != out_prime[node]:   # are the bottom element of the lattice.
             break
       else:
          break
 
-## TRANSFORMATION PHASE
+###### TRANSFORMATION PHASE
 
 # For the transformation phase, a union of the in and out sets must be made for each basic block. For each
 # instruction that uses a register name not contained in the union of out and in set, must be removed.
@@ -231,7 +237,9 @@ for CFG in functionList:
    CFG = CFG.visitedBlocks
    CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for node in CFG:
+      # Create a set of registers that must be keep. I.e. all instructions that contain these registers must be kept.
       keepRegSet = node.inSet.union(node.outSet)
+      # Cycle through all the instructions in the current basic block.
       for i in range(0, len(node.instrs)):
          if node.instrs[i][0] in ['lc', 'ld', 'call']:
             if node.instrs[i][1] not in keepRegSet:
