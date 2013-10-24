@@ -18,10 +18,10 @@ import sys
 
 class blockNode:
     def __init__(self,blockNumber):
-        self.inSet = {}
-        self.outSet = {}
-        self.useSet = {}
-        self.defSet = {}
+        self.inSet = set()
+        self.outSet = set()
+        self.useSet = set()
+        self.defSet = set()
         #children starts as a string list of node References. It is then fixed to actual references, otherwise it attempts to link a node that has not been created yet.
         self.children = []
         self.readReg = []
@@ -30,6 +30,9 @@ class blockNode:
         self.name = blockNumber
         self.visited = False
         self.parent = None
+    # This method is inserted for testing purposes.
+    def __repr__(self):
+        return repr((self.name))
 
 class functionTree:
     def __init__(self,name,arguments,headBlock):
@@ -150,6 +153,8 @@ def unionSuccessors(blockNode):
 
 # Determine use[n] and def[n] for all nodes in functionList.
 for CFG in functionList:
+   CFG = CFG.visitedBlocks
+   CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for basicBlock in CFG:
       # This loop is used to determine what registers are used as per condition (4).
       for i in range(0, len(basicBlock.instrs)):
@@ -168,7 +173,7 @@ for CFG in functionList:
          # Does the value of a register get used.
          elif instruction[0] in ['ret', 'br']:
             basicBlock.useSet.add(instruction[1])
-         elif: instruction[0] == 'st':
+         elif instruction[0] == 'st':
             basicBlock.useSet.add(instruction[2])
 
 # Create dictionary variables to store the in and out set of the basic blocks.
@@ -183,6 +188,8 @@ out_prime = {}
 
 ### Analyse each CFG from the functionList variable.
 for CFG in functionList:
+   CFG = CFG.visitedBlocks
+   CFG = sorted(CFG, key=lambda node: node.name, reverse=True)
    # for each node n in CFG                 # Initialise solutions
    # in[n] = None ; out[n] = None           ##
    for node in CFG:
@@ -213,11 +220,13 @@ for CFG in functionList:
 # instruction that uses a register name not contained in the union of out and in set, must be removed.
 
 for CFG in functionList:
+   CFG = CFG.visitedBlocks
+   CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for node in CFG:
       keepRegSet = node.inSet.add(node.outSet)
       for i in range(0, len(node.instrs)):
          if node.instrs[i][0] in ['lc', 'ld', 'call']:
-            if not (node.instrs[i][1] in keepRegSet):
+            if node.instrs[i][1] not in keepRegSet:
                node.instrs[i] = None
          elif node.instrs[i][0] in ['add', 'sub', 'mul', 'div', 'eq', 'lt', 'gt']:
             if not (node.instrs[i][1:] in keepRegSet):
