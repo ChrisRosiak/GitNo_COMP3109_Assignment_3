@@ -17,16 +17,18 @@
 # Function declaration for one of the data-flow equations in the iterator.
 def unionSuccessors(blockNode):
    """Function that creates a list of all the in sets from the successors of the given blockNode."""
-   newOutSet = []
+   newOutSet = set()
    for child in blockNode.children:
-      newOutSet.extend(child.inSet)
-      newOutSet.extend(unionSuccessors(child))
-   newOutSet = list(set(newOutSet))
+      newOutSet.union(child.inSet)
+      newOutSet.union(unionSuccessors(child))
+   newOutSet = set(newOutSet)
    return newOutSet
 
 
 # Determine use[n] and def[n] for all nodes in functionList.
 for CFG in functionList:
+   CFG = CFG.visitedBlocks
+   CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for basicBlock in CFG:
       # This loop is used to determine what registers are used as per condition (4).
       for i in range(0, len(basicBlock.instrs)):
@@ -45,7 +47,7 @@ for CFG in functionList:
          # Does the value of a register get used.
          elif instruction[0] in ['ret', 'br']:
             basicBlock.useSet.add(instruction[1])
-         elif: instruction[0] == 'st':
+         elif instruction[0] == 'st':
             basicBlock.useSet.add(instruction[2])
 
 # Create dictionary variables to store the in and out set of the basic blocks.
@@ -60,6 +62,8 @@ out_prime = {}
 
 ### Analyse each CFG from the functionList variable.
 for CFG in functionList:
+   CFG = CFG.visitedBlocks
+   CFG = sorted(CFG, key=lambda node: node.name, reverse=True)
    # for each node n in CFG                 # Initialise solutions
    # in[n] = None ; out[n] = None           ##
    for node in CFG:
@@ -76,7 +80,7 @@ for CFG in functionList:
          # out[n] = Union in[s] (where s is an element from the set of all successors of the node n)    # Solve data-flow equations
          node.outSet = unionSuccessors(node)
          # in[n] = use[n] Union (out[n] - def[n])                                                       ##
-         node.inSet = node.useSet.add(node.outSet - node.defSet)
+         node.inSet = node.useSet.union(node.outSet - node.defSet)
       # until in'[n] = in[n] and out'[n] = out[n] for all n               ## Test for convergence
       for node in CFG:
          if node.inSet != in_prime[node] or node.outSet != out_prime[node]:
@@ -90,13 +94,16 @@ for CFG in functionList:
 # instruction that uses a register name not contained in the union of out and in set, must be removed.
 
 for CFG in functionList:
+   CFG = CFG.visitedBlocks
+   CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for node in CFG:
-      keepRegSet = node.inSet.add(node.outSet)
+      keepRegSet = node.inSet.union(node.outSet)
       for i in range(0, len(node.instrs)):
          if node.instrs[i][0] in ['lc', 'ld', 'call']:
-            if not (node.instrs[i][1] in keepRegSet):
+            if node.instrs[i][1] not in keepRegSet:
                node.instrs[i] = None
          elif node.instrs[i][0] in ['add', 'sub', 'mul', 'div', 'eq', 'lt', 'gt']:
-            if not (node.instrs[i][1:] in keepRegSet):
+            if set(node.instrs[i][1:]).difference(keepRegSet):
                node.instrs[i] = None
+
 
