@@ -155,7 +155,6 @@ def unionSuccessors(blockNode):
       # Add the child inSet to the newSet, as well as the successors of the given blockNode.
       newOutSet.union(child.inSet)
       newOutSet.union(unionSuccessors(child))
-   newOutSet = set(newOutSet)
    return newOutSet
 
 
