@@ -22,14 +22,15 @@ class blockNode:
         self.outSet = set()
         self.useSet = set()
         self.defSet = set()
+        self.regToVar = {}
         #children starts as a string list of node References. It is then fixed to actual references, otherwise it attempts to link a node that has not been created yet.
-        self.children = []
+        self.children = set()
         self.readReg = []
         self.writeReg = []
         self.instrs = [] #list of instructions for block
         self.name = blockNumber
         self.visited = False
-        self.parent = None
+        self.parent = set()
     # This method is inserted for testing purposes.
     def __repr__(self):
         return repr((self.name))
@@ -41,7 +42,9 @@ class functionTree:
         self.headBlock = headBlock
         self.visitedBlocks = []
 
+#inputFile = "tests/task3/example.in"
 all_the_text = open(sys.argv[1]).read()      # all text from a text file
+#all_the_text = open(inputFile).read()      # all text from a text file
 data = OneOrMore(nestedExpr()).parseString(all_the_text)
 data = data[0];                                    # Remove redundant first list layer
 #print 'Data is length: '
@@ -49,6 +52,7 @@ data = data[0];                                    # Remove redundant first list
 
 #this is a list of functionTrees
 functionList = []
+variableDict = {}
 
 for i in range(0,len(data)):
     #print 'Function: ' + repr(i) + repr(data[i])
@@ -92,8 +96,8 @@ for i in range(0,len(data)):
             #But first, add the instruction to the node instruction list
             currentNode.instrs.append(data[i][j][k])
             if(data[i][j][k][0] == 'br'):
-                currentNode.children.append(data[i][j][k][2])
-                currentNode.children.append(data[i][j][k][3])
+                currentNode.children.add(data[i][j][k][2])
+                currentNode.children.add(data[i][j][k][3])
 
                 #If non-called functions are to be culled, this is where functions should be marked as called, and therefore the functions are reachable.
             #if(data[i][j][k][0] == 'call'):
@@ -111,7 +115,7 @@ for i in range(0,len(data)):
         #create new child list of references
         for child in stringList:
             blkRef.children.append(functionBlocks[child])
-            functionBlocks[child].parent = blkRef
+            functionBlocks[child].parent.add(blkRef)
 
 ##TREE CONSTRUCTION FINISHED
 
@@ -129,6 +133,83 @@ for func in functionList:
 
 #END TASK 2
 ##############################################################
+# BEGIN TASK 4
+
+
+# KEY TERMS 
+# varToRegDict[n] - a mapping of registers to variables avaliable for node (n).
+
+
+#function for joining the variables that are avaliable to a basic block
+def unionVariableDicts(blockNode):
+    newVarToReg = {}
+    newRegToVar = {}
+    for parent in blockNode.parent:
+        for reg in parent.regToVar:
+            if reg in newRegToVar and parent.regToVar[reg] != newRegToVar[reg]:
+                newRegToVar[reg] = None #there are two possible values for a variable hence dont know s
+            else:
+                newRegToVar[reg] = parent.regToVar[reg]
+    return newRegToVar
+
+
+#Traverse through a blocks children until the register containing the value is changed or the value in the variable is changed
+def replaceRegister(basicBlock,replaceValue,toReplace,variable):
+    for instruction in basicBlock.instrs:
+        #checking if an instruction changes the value in the replace register
+        if instruction[0] in ['add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt', 'call'] and instruction[1] == replaceValue:
+            if instruction[0] == 'ld' and instruction[1] == toReplace: pass
+            if instruction[0] == 'st' and instruction[1] == variable: return
+            if instruction[0] in ['add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt']:
+                if instruction[2] == toReplace: instruction[2] = replaceValue
+                if instruction[3] == toReplace: instruction[3] = replaeValue
+            return
+
+        #checking if an instruction changes the value of the search variable
+        if instruction[0] == "st" and instruction[1] == variable:
+            return
+
+        #if an instruction hasnt changed the register or variable we are replacing check if an instruction needs to be
+        #rewritten in place in order for the dead code elimination which follows to remove the now dead code
+        if not(instruction[0] == "ret"):
+            if instruction[0] in ['lc','ld'] and instruction[2] == toReplace:
+                instruction[2] = replaceValue
+            if instruction[0] in ['add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt']:
+                if instruction[2] == toReplace: instruction[2] = replaceValue
+                if instruction[3] == toReplace: instruction[3] = replaceValue
+            if instruction[0] == 'call':
+                for i in range(3,len(instruction)):
+                    if  instruction[i] == toReplace:
+                        instruction[i] = replaceValue
+
+    #recurse on each of the blocks children for the change to propergate until the value gets changed
+    for succesor in basicBlock.children:
+        replaceRegister(succesor,replaceValue,replace,variable)
+    return
+
+
+# traverse through the CFG and if a variable is already defined in memory replace the following references to that register to be the register
+# that already holds the value. By changing the instructions in place it allows the dead code removal to later remove he value in further processing
+for CFG in functionList:
+   CFG = CFG.visitedBlocks
+   CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
+   for basicBlock in CFG:
+      basicBlock.regToVar = unionVariableDicts(basicBlock)  #need to union its reg var dict with all its succesors to know what variables are in registers
+      for i in range(0, len(basicBlock.instrs)):
+            if basicBlock.instrs[i][0] in ['ld']:
+                if basicBlock.instrs[i][2] in basicBlock.regToVar.values(): #if the variable is already in a reg
+                    key = [key for key,value in basicBlock.regToVar.items() if value == basicBlock.instrs[i][2]][0] #get the variable in the register
+                    replace = basicBlock.instrs[i][1]
+                    replaceRegister(basicBlock,key,replace,basicBlock.regToVar[key]) #replaces the instructions in place
+                else: basicBlock.regToVar[basicBlock.instrs[i][1]] = basicBlock.instrs[i][2]
+                
+            if basicBlock.instrs[i][0] in ['add', 'sub', 'mul', 'div', 'eq', 'gt', 'lt', 'call']: ##if the reg value gets changed make the dict
+                if basicBlock.instrs[i][1] in basicBlock.regToVar:
+                    basicBlock.regToVar[basicBlock.instrs[i][1]] = None
+
+
+
+##############################################################
 # BEGIN TASK 3 
 
 
@@ -140,12 +221,6 @@ for func in functionList:
 # def[n] - set of registers that are defined at node n.
 #        - An assignment of a value to a register.
 
-# DATA ANALYSIS THEORY
-# This part of the program implements a backward data-flow analysis.
-# The lattice of this data-flow analysis is the set of registers values that are used at a particluar point in the program.
-# The meet operator in this analysis is the union operator.
-# The transfer function is applied to the out set of the basic block.
-#
 
 # Function declaration for one of the data-flow equations in the iterator.
 def unionSuccessors(blockNode):
@@ -157,10 +232,8 @@ def unionSuccessors(blockNode):
       newOutSet.union(unionSuccessors(child))
    return newOutSet
 
-
 # Determine use[n] and def[n] for all nodes in functionList.
 for CFG in functionList:
-   # Define CFG to be an ordered list of blockNodes. This is to emulate an actual CFG.
    CFG = CFG.visitedBlocks
    CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for basicBlock in CFG:
@@ -195,19 +268,20 @@ for CFG in functionList:
 in_prime = {}
 out_prime = {}
 
-###### ANALYSIS PHASE 
+## ANALYSIS PHASE 
+
+# Pseudocode of the iterator algorithm.
+### Comments on actual Python code are prefixed with three '#' symbols.
 
 ### Analyse each CFG from the functionList variable.
 for CFG in functionList:
-   # Create an ordered basic block tree, i.e. CFG. This CFG is in reverse order due to a backward data-flow analysis
-   # being employed.
    CFG = CFG.visitedBlocks
    CFG = sorted(CFG, key=lambda node: node.name, reverse=True)
    # for each node n in CFG                 # Initialise solutions
    # in[n] = None ; out[n] = None           ##
    for node in CFG:
-      node.inSet = []      # Set the two sets to the 
-      node.outSet = []     # top element of the lattice.
+      node.inSet = []
+      node.outSet = []
    # repeat
    while True:
       # for each node n in CFG in reverse topsort order
@@ -220,14 +294,14 @@ for CFG in functionList:
          node.outSet = unionSuccessors(node)
          # in[n] = use[n] Union (out[n] - def[n])                                                       ##
          node.inSet = node.useSet.union(node.outSet - node.defSet)
-      # until in'[n] = in[n] and out'[n] = out[n] for all n                   # Test for convergence
-      for node in CFG:                                                        # I.e. test the sets for all nodes 
-         if node.inSet != in_prime[node] or node.outSet != out_prime[node]:   # are the bottom element of the lattice.
+      # until in'[n] = in[n] and out'[n] = out[n] for all n               ## Test for convergence
+      for node in CFG:
+         if node.inSet != in_prime[node] or node.outSet != out_prime[node]:
             break
       else:
          break
 
-###### TRANSFORMATION PHASE
+## TRANSFORMATION PHASE
 
 # For the transformation phase, a union of the in and out sets must be made for each basic block. For each
 # instruction that uses a register name not contained in the union of out and in set, must be removed.
@@ -236,9 +310,7 @@ for CFG in functionList:
    CFG = CFG.visitedBlocks
    CFG = sorted(CFG, key=lambda node: node.name, reverse=False)
    for node in CFG:
-      # Create a set of registers that must be keep. I.e. all instructions that contain these registers must be kept.
       keepRegSet = node.inSet.union(node.outSet)
-      # Cycle through all the instructions in the current basic block.
       for i in range(0, len(node.instrs)):
          if node.instrs[i][0] in ['lc', 'ld', 'call']:
             if node.instrs[i][1] not in keepRegSet:
@@ -259,7 +331,7 @@ for CFG in functionList:
 #############################################################
 #BEGIN FILE OUTPUT
 
-print 'OUTPUT - remove all print statements above this line (and this one)'
+#print 'OUTPUT - remove all print statements above this line (and this one)'
 print '(',                                               #open file
 for func in functionList:
     #If not first function, fix indentation
